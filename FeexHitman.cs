@@ -59,7 +59,7 @@ namespace Freenex.FeexHitman
         {
             if (FeexHitman.Instance.FeexHitmanDatabase.CheckExists(player.CSteamID))
             {
-                FeexHitman.Instance.FeexHitmanDatabase.UpdateVictimDisplayName(player.CSteamID, player.CharacterName);
+                FeexHitman.Instance.FeexHitmanDatabase.UpdateVictimDisplayName(player.CSteamID, player.DisplayName);
             }
         }
 
@@ -77,18 +77,9 @@ namespace Freenex.FeexHitman
 
             foreach (Rocket.API.Serialisation.Permission playerPermission in UPmurderer.GetPermissions())
             {
-                if (playerPermission.Name.ToLower().Contains("hitman.receive."))
+                if (playerPermission.Name.ToLower().Contains("hitman.receive"))
                 {
-                    string BountyPermission = playerPermission.Name.ToLower().Replace("hitman.receive.", string.Empty);
-
-                    decimal BountyPercentagePermission;
-                    bool isPercentageNumeric = decimal.TryParse(BountyPermission, out BountyPercentagePermission);
-                    if (!isPercentageNumeric) { Logger.LogError(BountyPermission + " is not numeric."); return; }
-
-                    if (BountyPercentagePermission > BountyPercentage)
-                    {
-                        BountyPercentage = BountyPercentagePermission;
-                    }
+                    BountyPercentage = 75;
                 }
             }
 
@@ -96,13 +87,18 @@ namespace Freenex.FeexHitman
             {
                 if (FeexHitman.Instance.FeexHitmanDatabase.CheckExists(player.CSteamID))
                 {
-                    decimal amount = FeexHitman.Instance.FeexHitmanDatabase.GetBounty(player.CSteamID);
-                    amount = System.Math.Round(amount * (BountyPercentage / 100), 2);
+                    /* -- Ajout de la prime au PorteMonnaie du meurtrier -- */
+                    decimal primeInitiale = FeexHitman.Instance.FeexHitmanDatabase.GetBounty(player.CSteamID);
+                    decimal amount = System.Math.Round(primeInitiale * (BountyPercentage / 100));
                     Uconomy.Instance.Database.IncreaseBalance(UPmurderer.Id, amount);
                     FeexHitman.Instance.FeexHitmanDatabase.RemoveVictimAccount(player.CSteamID);
+                    /* -- Ajoute une prime sur la tete de la victime avec l'argent restant -- */
+                    decimal primeRestante = System.Math.Round(primeInitiale * ((100-BountyPercentage) / 100));
+                    FeexHitman.Instance.FeexHitmanDatabase.AddUpdateVictimAccount(player.CSteamID,primeRestante,player.DisplayName);
+
                     if (FeexHitman.Instance.Translations.Instance.Translate("hitman_general_chat_received") != "hitman_general_chat_received")
                     {
-                        UnturnedChat.Say(FeexHitman.Instance.Translations.Instance.Translate("hitman_general_chat_received", UPmurderer.CharacterName, player.CharacterName, amount.ToString(), BountyPercentage), UnityEngine.Color.yellow);
+                        UnturnedChat.Say(FeexHitman.Instance.Translations.Instance.Translate("hitman_general_chat_received", UPmurderer.DisplayName, player.DisplayName, amount.ToString(), BountyPercentage), UnityEngine.Color.yellow);
                     }
                 }
             }
